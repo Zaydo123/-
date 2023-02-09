@@ -10,7 +10,7 @@ import sys
 
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 500
-WINDOW_SCALE_FACTOR = 0.8
+WINDOW_SCALE_FACTOR = 1.0
 command = ""
 record = False 
 
@@ -104,10 +104,16 @@ class ShowVideo:
             self.fps.update()
             self.fps.stop()
             cv2.putText(frame, "FPS: {:.2f}".format(self.fps.fps()), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+            #crosshair using this pseuodocode line((screenWidth/2)-20, screenHeight/2, (screenWidth/2)+20, screenHeight/2);  line(screenWidth/2, (screenHeight/2)-20, screenWidth/2, (screenHeight/2)+20); 
+            cv2.line(frame, (int(WINDOW_WIDTH/2)-20, int(WINDOW_HEIGHT/2)), (int(WINDOW_WIDTH/2)+20, int(WINDOW_HEIGHT/2)), (255, 0, 0), 1)
+            cv2.line(frame, (int(WINDOW_WIDTH/2), int(WINDOW_HEIGHT/2)-20), (int(WINDOW_WIDTH/2), int(WINDOW_HEIGHT/2)+20), (255, 0, 0), 1)
+
+            
             # Night Vision Effect ( SIMULATED )
             # convert to grayscale            # invert the grayscale image
             if invert:
                 frame = 255 - frame
+                
             cv2.imshow("Night Vision", frame)
             
             key = cv2.waitKey(1) & 0xFF
@@ -171,13 +177,13 @@ def commandListener():
             pass
         else:
             print("Invalid command")
-        time.sleep(0.1)
+        time.sleep(0.5)
     try:
         window.stop()
+        exit()
     except:
         pass
     
-    cv2.destroyAllWindows()
    
 
 

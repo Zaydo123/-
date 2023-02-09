@@ -6,19 +6,40 @@ from threading import Thread
 import time
 import imutils
 import os
+import sys
 
+WINDOW_WIDTH = 500
+WINDOW_HEIGHT = 500
+WINDOW_SCALE_FACTOR = 0.8
+command = ""
+record = False 
 
-WINDOW_WIDTH = 640
-WINDOW_HEIGHT = 480
 #make two separate threads. One for the imshow and one for the webcam
 class WebcamVideoStream:
     def __init__(self, src=0):
+        global WINDOW_WIDTH
+        global WINDOW_HEIGHT
+        global WINDOW_SCALE_FACTOR
         # initialize the video camera stream and read the first frame
         # from the stream
-        self.stream = cv2.VideoCapture(src)\
+        self.stream = cv2.VideoCapture(src)
 
         print("Camera Width: " + str(self.stream.get(3)))
         print("Camera Height: " + str(self.stream.get(4)))
+
+        CAMERA_WIDTH = self.stream.get(3)
+        CAMERA_HEIGHT = self.stream.get(4)
+
+        #resize window width and height to be same ratio as camera width and height
+        WINDOW_WIDTH = int(CAMERA_WIDTH * (WINDOW_HEIGHT / CAMERA_HEIGHT))
+        WINDOW_HEIGHT = int(CAMERA_HEIGHT * (WINDOW_WIDTH / CAMERA_WIDTH))
+
+        WINDOW_HEIGHT = int(WINDOW_HEIGHT * WINDOW_SCALE_FACTOR)
+        WINDOW_WIDTH = int(WINDOW_WIDTH * WINDOW_SCALE_FACTOR)
+
+        print("Window Width: " + str(WINDOW_WIDTH))
+        print("Window Height: " + str(WINDOW_HEIGHT))
+
         print("Camera FPS: " + str(self.stream.get(5)))
         print("Camera Brightness: " + str(self.stream.get(10)))
 
@@ -58,73 +79,118 @@ class ShowVideo:
         self.fps = FPS().start()
         self.stopped = False
 
-        #see if output.mp4 exists, if it does, increase the number by 1
-        #this is to prevent overwriting the file
-        i = 1
-        while True:
-            if os.path.exists("output" + str(i) + ".avi"):
-                i += 1
-            else:
-                break
-        #create the video writer
-      #self.out = cv2.VideoWriter('output' + str(i) + '.avi', cv2.VideoWriter_fourcc(*'XVID'), 20.0, (WINDOW_WIDTH, WINDOW_HEIGHT))
-            #out = cv2.VideoWriter('outpy.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
-        self.out = cv2.VideoWriter('output'+ str(i) +'.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30.0, (WINDOW_WIDTH, WINDOW_HEIGHT))
-
     def start(self):
-        Thread(target=self.update, args=()).start()
+        #Thread(target=self.update, args=()).start()
+        #set fullscreen
+
+        #waitkey thread
+        cv2.namedWindow("Night Vision", cv2.WND_PROP_FULLSCREEN)        
+        self.update()
         return self
+
 
     def update(self):
         global invert
+        global record
+        global command
+
         invert = False
         while True:
             if self.stopped:
                 return
             frame = self.stream.read()
             frame = cv2.resize(frame, (WINDOW_WIDTH, WINDOW_HEIGHT))
+            #frame = imutils.resize(frame, width=WINDOW_WIDTH)
             self.fps.update()
             self.fps.stop()
             cv2.putText(frame, "FPS: {:.2f}".format(self.fps.fps()), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
             # Night Vision Effect ( SIMULATED )
-            # convert to grayscale
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # invert the grayscale image
+            # convert to grayscale            # invert the grayscale image
             if invert:
-                frame = 255 - gray
-                
+                frame = 255 - frame
             cv2.imshow("Night Vision", frame)
             
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                command = "exit"
+            elif key == ord("r"):
+                self.start_video()
+            elif key == ord("s"):
+                self.stop_video()
+            elif key == ord("i"):
+                invert = True
+            elif key == ord("n"):
+                invert = False
+                
+
             #write video to output.avi
-            #self.out.write(frame)
-            cv2.waitKey(1)
+            if record:
+                self.out.write(frame)
 
     def stop(self):
+        global record
         self.stopped = True
         self.stream.stop()
-        self.out.release()
+        if record and self.out.isOpened():
+            self.out.release()
 
+    def start_video(self):
+        global record
+        if not record:
+            i = 1
+            while True:
+                if os.path.exists("output" + str(i) + ".avi"):
+                    i += 1
+                else:
+                    break
+            
+            self.out = cv2.VideoWriter('output'+ str(i) +'.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30.0, (WINDOW_WIDTH, WINDOW_HEIGHT))
+            record = True
 
+    def stop_video(self):
+        global record
+        if record and self.out.isOpened():
+            self.out.release()
+            record = False
 
-if __name__ == '__main__':
-    window = ShowVideo()
-    window.start()
-
-
+def commandListener():
+    global record
+    global command
     while True:
-
-        command = input("Enter a command: ")
         if command == "invert":
             invert = True
         elif command == "normal":
             invert = False
         elif command == "exit":
-            window.stop()
-
             break
+        elif command == "record":
+            record = True
+        elif command == "save":
+            window.stop_video()
+        elif command == "":
+            pass
         else:
             print("Invalid command")
+        time.sleep(0.1)
+    try:
+        window.stop()
+    except:
+        pass
     
     cv2.destroyAllWindows()
+   
+
+
+if __name__ == '__main__':
+    window = ShowVideo()
+    t1 = Thread(target=commandListener).start()
+
+    window.start()
+
+
+   
 
         
+    
+    
+   
